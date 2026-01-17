@@ -8,8 +8,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
-// نقطة فحص
-app.get('/', (req, res) => res.send('Steam Proxy Server V2 - Ready 🚀'));
+// نقطة فحص للتأكد أن السيرفر يعمل
+app.get('/', (req, res) => res.send('Steam Proxy Server V3 - Ready 🚀'));
 
 // ---------------------------------------------------------
 // 1. البحث في متجر Steam (بديل CheapShark)
@@ -20,7 +20,7 @@ app.get('/api/search', async (req, res) => {
         const term = req.query.term;
         if (!term) return res.status(400).json({ error: "No search term provided" });
 
-        // البحث في متجر ستيم الرسمي
+        // البحث في متجر ستيم الرسمي مع تحديد اللغة العربية والمنطقة السعودية
         const response = await axios.get(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=arabic&cc=sa`);
         res.json(response.data);
     } catch (error) {
@@ -61,6 +61,25 @@ app.get('/api/featured', async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------
+// 4. جلب عدد اللاعبين الحاليين (الأثر)
+// الرابط: /api/game/players?appId=12345
+// ---------------------------------------------------------
+app.get('/api/game/players', async (req, res) => {
+    try {
+        const appId = req.query.appId;
+        
+        // يمكن إضافة مفتاح API هنا إذا لزم الأمر في المستقبل: &key=${process.env.STEAM_API_KEY}
+        let url = `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${appId}`;
+        
+        const response = await axios.get(url);
+        res.json(response.data);
+    } catch (error) { 
+        // في حال الفشل، نعيد 0 بدلاً من تحطيم التطبيق
+        res.json({ response: { player_count: 0, result: 0 } }); 
+    }
+});
+
 app.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`✅ Server V3 running on port ${PORT}`);
 });
