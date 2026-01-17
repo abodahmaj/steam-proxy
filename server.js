@@ -1,92 +1,66 @@
-// استيراد المكتبات الضرورية
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-require('dotenv').config(); // لقراءة المتغيرات البيئية (مثل المفتاح)
+require('dotenv').config();
 
 const app = express();
-// تحديد المنفذ (يأخذه من البيئة أو يستخدم 3000 كاحتياطي)
 const PORT = process.env.PORT || 3000;
 
-// تفعيل CORS للسماح لتطبيقك بالاتصال بهذا الخادم من أي مكان
 app.use(cors());
 
-// نقطة فحص سريعة للتأكد أن الخادم يعمل
-app.get('/', (req, res) => {
-    res.send('خادم Steam Proxy يعمل بنجاح! 🚀');
+// نقطة فحص
+app.get('/', (req, res) => res.send('Steam Proxy Server V2 - Ready 🚀'));
+
+// ---------------------------------------------------------
+// 1. البحث في متجر Steam (بديل CheapShark)
+// الرابط: /api/search?term=elden
+// ---------------------------------------------------------
+app.get('/api/search', async (req, res) => {
+    try {
+        const term = req.query.term;
+        if (!term) return res.status(400).json({ error: "No search term provided" });
+
+        // البحث في متجر ستيم الرسمي
+        const response = await axios.get(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=arabic&cc=sa`);
+        res.json(response.data);
+    } catch (error) {
+        console.error("Search Error:", error.message);
+        res.status(500).json({ error: "Failed to search Steam" });
+    }
 });
 
 // ---------------------------------------------------------
-// 1. نقطة اتصال لجلب تفاصيل لعبة (Store Data)
+// 2. جلب تفاصيل لعبة محددة
 // الرابط: /api/game/details?appId=12345
 // ---------------------------------------------------------
 app.get('/api/game/details', async (req, res) => {
     try {
         const appId = req.query.appId;
-        
-        if (!appId) {
-            return res.status(400).json({ error: "الرجاء توفير رقم اللعبة (appId)" });
-        }
+        if (!appId) return res.status(400).json({ error: "No appId provided" });
 
-        // الاتصال بمتجر Steam
-        // نضيف cc=sa للحصول على الأسعار بالريال السعودي، و l=arabic للغة العربية
         const response = await axios.get(`https://store.steampowered.com/api/appdetails?appids=${appId}&cc=sa&l=arabic`);
-        
-        // إرسال البيانات للتطبيق
         res.json(response.data);
-
     } catch (error) {
-        console.error("خطأ في جلب التفاصيل:", error.message);
-        res.status(500).json({ error: "فشل الاتصال بخوادم Steam Store" });
+        console.error("Details Error:", error.message);
+        res.status(500).json({ error: "Failed to fetch details" });
     }
 });
 
 // ---------------------------------------------------------
-// 2. نقطة اتصال لجلب الأخبار (Web API)
-// الرابط: /api/game/news?appId=12345
+// 3. جلب الألعاب المميزة (الترند/المستكشف)
+// الرابط: /api/featured
 // ---------------------------------------------------------
-app.get('/api/game/news', async (req, res) => {
+app.get('/api/featured', async (req, res) => {
     try {
-        const appId = req.query.appId;
-        if (!appId) return res.status(400).json({ error: "مطلوب appId" });
-
-        // جلب الأخبار
-        const response = await axios.get(`http://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appId}&count=3&maxlength=300&format=json`);
-        
+        // يجلب القوائم الرسمية من واجهة المتجر (الأكثر مبيعاً، جديد، عروض)
+        const response = await axios.get('https://store.steampowered.com/api/featuredcategories?l=arabic&cc=sa');
         res.json(response.data);
-
     } catch (error) {
-        console.error("خطأ في جلب الأخبار:", error.message);
-        res.status(500).json({ error: "فشل جلب الأخبار من Steam API" });
+        console.error("Featured Error:", error.message);
+        res.status(500).json({ error: "Failed to fetch featured games" });
     }
 });
 
-// ---------------------------------------------------------
-// 3. نقطة اتصال لجلب عدد اللاعبين الحاليين (مثال لاستخدام المفتاح السري)
-// الرابط: /api/game/players?appId=12345
-// ---------------------------------------------------------
-app.get('/api/game/players', async (req, res) => {
-    try {
-        const appId = req.query.appId;
-        // هنا نستخدم المفتاح السري المحفوظ في بيئة السيرفر وليس في كود الواجهة
-        const apiKey = process.env.STEAM_API_KEY; 
-
-        if (!apiKey) {
-            console.warn("تحذير: لم يتم العثور على مفتاح Steam API في متغيرات البيئة");
-            return res.status(500).json({ error: "المفتاح غير مهيأ في الخادم" });
-        }
-
-        const response = await axios.get(`https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${appId}&key=${apiKey}`);
-        res.json(response.data);
-
-    } catch (error) {
-        console.error("خطأ في جلب عدد اللاعبين:", error.message);
-        res.status(500).json({ error: "فشل الاتصال بـ Steam API" });
-    }
-});
-
-// تشغيل الخادم
 app.listen(PORT, () => {
-    console.log(`✅ الخادم يعمل الآن على المنفذ ${PORT}`);
-    console.log(`🔗 رابط التجربة المحلي: http://localhost:${PORT}`);
+    console.log(`✅ Server running on port ${PORT}`);
 });
